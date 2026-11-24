@@ -15,7 +15,7 @@ export const CORE_DIR = path.join(ROOT_DIR, 'core');
 export const STYLES_DIR = path.join(CORE_DIR, 'styles');
 export const RUNTIME_DIR = path.join(CORE_DIR, 'runtime');
 export const USER_DIR = path.join(ROOT_DIR, 'user');
-export const BASE_VERSION = '1.3.2';
+export const BASE_VERSION = '1.3.1';
 
 export function parseDaemonCliArgs(argv = process.argv.slice(2)) {
   const hasFlag = (f) => argv.some((a) => a === f || a.startsWith(f + '='));
@@ -153,6 +153,7 @@ const EDITABLE_MODULE_KEYS = new Set([
   'theme',
   'i18n',
   'metrics',
+  'quotaBar',
   'promptSuggestions',
   'sshRemote',
   'deadlockHealer',
@@ -163,6 +164,51 @@ const EDITABLE_MODULE_KEYS = new Set([
 ]);
 const VALID_SSH_HOST_RE = /^[a-zA-Z0-9_@][a-zA-Z0-9._:@-]{0,127}$/;
 const VALID_SUGGEST_MODEL_RE = /^[a-zA-Z0-9._:/-]{2,80}$/;
+
+export const DEFAULT_QUOTA_BAR_CONFIG = Object.freeze({
+  style: 'bar',          // 'text' | 'bar' | 'pill'
+  placement: 'inline',   // 'inline' | 'separate'
+  scope: 'current',      // 'current' | 'all'
+  windows: 'both',       // 'both' | '5h' | 'weekly'
+  theme: 'auto',         // 'auto' | 'mono' | 'accent' | 'custom'
+  size: 'md',            // 'sm' | 'md' | 'lg'
+  align: 'center',       // 'left' | 'center' | 'right' | 'between'
+  showReset: true,
+  showCredits: false,
+  customColor: '',
+  customBg: ''
+});
+
+function sanitizeQuotaColor(val, allowRgba = false) {
+  const s = String(val || '').trim();
+  if (!s) return '';
+  if (/^#[0-9a-fA-F]{3,8}$/.test(s)) return s;
+  if (
+    allowRgba &&
+    s.length <= 48 &&
+    /^rgba?\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}(?:\s*,\s*(?:0?\.\d+|1(?:\.0+)?|0))?\s*\)$/.test(s)
+  ) {
+    return s;
+  }
+  return '';
+}
+
+export function normalizeQuotaBarConfig(raw) {
+  const src = raw && typeof raw === 'object' ? raw : {};
+  return {
+    style: src.style === 'text' || src.style === 'pill' || src.style === 'bar' ? src.style : DEFAULT_QUOTA_BAR_CONFIG.style,
+    placement: src.placement === 'separate' || src.placement === 'inline' ? src.placement : DEFAULT_QUOTA_BAR_CONFIG.placement,
+    scope: src.scope === 'all' || src.scope === 'current' ? src.scope : DEFAULT_QUOTA_BAR_CONFIG.scope,
+    windows: src.windows === '5h' || src.windows === 'weekly' || src.windows === 'both' ? src.windows : DEFAULT_QUOTA_BAR_CONFIG.windows,
+    theme: src.theme === 'mono' || src.theme === 'accent' || src.theme === 'custom' || src.theme === 'auto' ? src.theme : DEFAULT_QUOTA_BAR_CONFIG.theme,
+    size: src.size === 'sm' || src.size === 'lg' || src.size === 'md' ? src.size : DEFAULT_QUOTA_BAR_CONFIG.size,
+    align: src.align === 'left' || src.align === 'right' || src.align === 'between' || src.align === 'center' ? src.align : DEFAULT_QUOTA_BAR_CONFIG.align,
+    showReset: typeof src.showReset === 'boolean' ? src.showReset : DEFAULT_QUOTA_BAR_CONFIG.showReset,
+    showCredits: typeof src.showCredits === 'boolean' ? src.showCredits : DEFAULT_QUOTA_BAR_CONFIG.showCredits,
+    customColor: sanitizeQuotaColor(src.customColor, false),
+    customBg: sanitizeQuotaColor(src.customBg, true)
+  };
+}
 
 export function sanitizeConfigPatch(currentCfg, patch) {
   const base = currentCfg && typeof currentCfg === 'object' ? JSON.parse(JSON.stringify(currentCfg)) : {};
@@ -184,6 +230,9 @@ export function sanitizeConfigPatch(currentCfg, patch) {
   if (patch.telemetryCacheMode === 'session' || patch.telemetryCacheMode === 'step') {
     base.telemetryCacheMode = patch.telemetryCacheMode;
   }
+  if (typeof patch.telemetryDefaultExpanded === 'boolean') {
+    base.telemetryDefaultExpanded = patch.telemetryDefaultExpanded;
+  }
   if (typeof patch.promptSuggestionModel === 'string') {
     const m = patch.promptSuggestionModel.trim();
     if (m && !m.startsWith('-') && VALID_SUGGEST_MODEL_RE.test(m)) {
@@ -203,6 +252,13 @@ export function sanitizeConfigPatch(currentCfg, patch) {
     base.sshHosts = out;
   }
 
+  if (patch.quotaBar && typeof patch.quotaBar === 'object') {
+    base.quotaBar = normalizeQuotaBarConfig({
+      ...(base.quotaBar && typeof base.quotaBar === 'object' ? base.quotaBar : {}),
+      ...patch.quotaBar
+    });
+  }
+
   return base;
 }
 
@@ -216,6 +272,7 @@ export function createBundleController({ safeMode = false, cliChannel = null, ha
     preset: 'codex-pure-white',
     telemetryLayout: 'compact',
     telemetryCacheMode: 'session',
+    telemetryDefaultExpanded: false,
     contextLimit: 'auto',
     manualContextLimit: 0,
     fallbackContextLimit: 256000,
@@ -224,6 +281,7 @@ export function createBundleController({ safeMode = false, cliChannel = null, ha
       theme: true,
       i18n: true,
       metrics: Boolean(hasSqlite),
+      quotaBar: true,
       sshRemote: false,
       promptSuggestions: false,
       deadlockHealer: true,
@@ -232,6 +290,7 @@ export function createBundleController({ safeMode = false, cliChannel = null, ha
       customCss: true,
       customJs: true
     },
+    quotaBar: { ...DEFAULT_QUOTA_BAR_CONFIG },
     sshHosts: [],
     themeVars: {},
     selectors: {},
@@ -269,6 +328,7 @@ export function createBundleController({ safeMode = false, cliChannel = null, ha
     const preset = presetRaw === 'codex-dark' || presetRaw === 'onyx-dark' ? 'codex-dark' : 'codex-pure-white';
     const telemetryLayout = userCfg.telemetryLayout === 'detailed' ? 'detailed' : 'compact';
     const telemetryCacheMode = userCfg.telemetryCacheMode === 'step' ? 'step' : 'session';
+    const telemetryDefaultExpanded = Boolean(userCfg.telemetryDefaultExpanded);
 
     const rawContextLimit = userCfg.contextLimit;
     const isAutoLimit =
@@ -290,6 +350,7 @@ export function createBundleController({ safeMode = false, cliChannel = null, ha
         theme: true,
         i18n: true,
         metrics: true,
+        quotaBar: true,
         sshRemote: false,
         promptSuggestions: false,
         deadlockHealer: true,
@@ -309,6 +370,7 @@ export function createBundleController({ safeMode = false, cliChannel = null, ha
     const hasMetricsFiles =
       fs.existsSync(path.join(RUNTIME_DIR, '50-telemetry-ui.js')) &&
       fs.existsSync(path.join(CORE_DIR, 'daemon', 'sqlite-metrics.mjs'));
+    const hasQuotaBarFiles = fs.existsSync(path.join(RUNTIME_DIR, '55-quota-bar.js'));
     const hasPromptSuggestFiles =
       fs.existsSync(path.join(RUNTIME_DIR, '70-prompt-suggestions.js')) &&
       fs.existsSync(path.join(CORE_DIR, 'daemon', 'prompt-suggest.mjs'));
@@ -319,11 +381,14 @@ export function createBundleController({ safeMode = false, cliChannel = null, ha
       modules.metrics = false;
       modules.sshRemote = false;
     }
+    if (!hasQuotaBarFiles) modules.quotaBar = false;
     if (!hasPromptSuggestFiles) modules.promptSuggestions = false;
     if (!hasGuardsFile) {
       modules.deadlockHealer = false;
       modules.zoomShortcuts = false;
     }
+
+    const quotaBar = safeMode ? { ...DEFAULT_QUOTA_BAR_CONFIG } : normalizeQuotaBarConfig(userCfg.quotaBar);
 
     const themeVars = !safeMode && userCfg.themeVars && typeof userCfg.themeVars === 'object' ? userCfg.themeVars : {};
     const endpoints = resolveActiveChannelEndpoints(channel, userCfg, cliOpts);
@@ -359,11 +424,13 @@ export function createBundleController({ safeMode = false, cliChannel = null, ha
       preset,
       telemetryLayout,
       telemetryCacheMode,
+      telemetryDefaultExpanded,
       contextLimit,
       manualContextLimit,
       fallbackContextLimit,
       promptSuggestionModel,
       modules,
+      quotaBar,
       sshHosts: Array.isArray(userCfg.sshHosts) ? userCfg.sshHosts : [],
       themeVars,
       selectors: normalizedSelectors,
@@ -374,6 +441,7 @@ export function createBundleController({ safeMode = false, cliChannel = null, ha
     const activeStyleFiles = styleFiles.filter((filePath) => {
       const base = path.basename(filePath);
       if (base === '30-telemetry.css') return Boolean(modules.metrics);
+      if (base === '35-quota-bar.css') return Boolean(modules.quotaBar);
       if (base === '40-prompt-suggestions.css') return Boolean(modules.promptSuggestions);
       if (base === '45-settings-ui.css') return Boolean(enabled);
       return modules.theme !== false;
@@ -400,9 +468,11 @@ export function createBundleController({ safeMode = false, cliChannel = null, ha
           preset,
           telemetryLayout,
           telemetryCacheMode,
+          telemetryDefaultExpanded,
           promptSuggestionModel,
           sshHosts: activeConfig.sshHosts,
           modules,
+          quotaBar,
           themeVars,
           selectors: activeConfig.selectors
         })
@@ -420,6 +490,8 @@ export function createBundleController({ safeMode = false, cliChannel = null, ha
       preset,
       telemetryLayout,
       telemetryCacheMode,
+      telemetryDefaultExpanded,
+      quotaBar,
       cssText: baseCss,
       customCss,
       themeVars,
@@ -432,10 +504,12 @@ export function createBundleController({ safeMode = false, cliChannel = null, ha
         preset,
         telemetryLayout,
         telemetryCacheMode,
+        telemetryDefaultExpanded,
         contextLimit,
         promptSuggestionModel,
         sshHosts: activeConfig.sshHosts,
         modules,
+        quotaBar,
         themeVars
       },
       customJs

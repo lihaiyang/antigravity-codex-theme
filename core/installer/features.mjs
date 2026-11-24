@@ -64,9 +64,11 @@ export const FEATURE_GROUPS = Object.freeze({
     configKeys: ['metrics'],
     sparsePaths: [
       '/core/styles/30-telemetry.css',
+      '/core/styles/35-quota-bar.css',
       '/core/runtime/30-antigravity-probe.js',
       '/core/runtime/40-status-machine.js',
       '/core/runtime/50-telemetry-ui.js',
+      '/core/runtime/55-quota-bar.js',
       '/core/daemon/ls-log.mjs',
       '/core/daemon/protobuf.mjs',
       '/core/daemon/sqlite-metrics.mjs',
@@ -75,9 +77,11 @@ export const FEATURE_GROUPS = Object.freeze({
     ],
     coreRelPaths: [
       'styles/30-telemetry.css',
+      'styles/35-quota-bar.css',
       'runtime/30-antigravity-probe.js',
       'runtime/40-status-machine.js',
       'runtime/50-telemetry-ui.js',
+      'runtime/55-quota-bar.js',
       'daemon/ls-log.mjs',
       'daemon/protobuf.mjs',
       'daemon/sqlite-metrics.mjs',

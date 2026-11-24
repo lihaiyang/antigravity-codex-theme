@@ -30,6 +30,8 @@
   const AG_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   const metricsByCid = (window.__ag_metrics_by_cid = {});
   const paneStates = (window.__ag_pane_states = {});
+  const isDefaultExpanded = () =>
+    Boolean(boot.telemetryDefaultExpanded || (boot.userConfig && boot.userConfig.telemetryDefaultExpanded));
 
   function getOrCreatePaneState(key) {
     if (!paneStates[key]) {
@@ -415,10 +417,16 @@
         }
         if (window.__ag_tt_show_timer) clearTimeout(window.__ag_tt_show_timer);
         window.__ag_tt_show_timer = setTimeout(() => {
+          if (pill.querySelector('#ag-quota-bar:hover')) return;
           const res = hydrateTooltipForPane(paneKey);
           if (!res || !res.tt || !res.tt.innerHTML.trim()) return;
           if (res.tt.getAttribute('data-visible') !== '1') {
             window.__ag_tt_hover_opened_at = Date.now();
+            if (isDefaultExpanded()) {
+              res.tt.setAttribute('data-expanded', '1');
+            } else {
+              res.tt.removeAttribute('data-expanded');
+            }
           }
           positionMetricsTooltip(pill, res.tt, res.pane ? res.pane.inputBox : inputBox);
           res.tt.setAttribute('data-visible', '1');
@@ -460,8 +468,12 @@
         const switchedOwner = prevOwner && prevOwner !== paneKey;
 
         if (!isVisible || !window.__ag_tt_pinned || switchedOwner) {
-          // 1st click (or switching from the other pane): open & pin L1 summary panel
-          tt.removeAttribute('data-expanded');
+          // 1st click (or switching from the other pane): open & pin L1 summary panel (or L2 if default-expanded)
+          if (isDefaultExpanded()) {
+            tt.setAttribute('data-expanded', '1');
+          } else {
+            tt.removeAttribute('data-expanded');
+          }
           tt.setAttribute('data-visible', '1');
           window.__ag_tt_pinned = true;
           window.__ag_tt_hover_opened_at = 0;

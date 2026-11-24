@@ -42,11 +42,7 @@ export function openAllowlistedExternalLink(key, { execFileFn = execFile, platfo
 const __bridgeDir = path.dirname(fileURLToPath(import.meta.url));
 let getLsLogSig = () => '';
 let getDbSignature = () => null;
-let createSshRemoteController = () => ({
-  getRemoteMetricsSource: () => null,
-  syncState: () => {},
-  stop: () => {}
-});
+let createSshRemoteController = () => ({ getRemoteMetricsSource: () => null });
 let checkForUpdates = async () => ({ ok: false, status: 'error', error: 'updater unavailable' });
 let applyPluginUpdate = async () => ({ ok: false, applied: false, error: 'updater unavailable' });
 let updateApplyInFlight = false;
@@ -131,7 +127,7 @@ export function isSkippedTargetCoolingDown(entry, currentOrigin, nowMs = Date.no
   return nowMs < Number(entry.nextRetryAtMs || 0);
 }
 
-export function acquireDaemonPidLock(cliChannel = null, runOnce = false, onShutdown = null) {
+export function acquireDaemonPidLock(cliChannel = null, runOnce = false) {
   if (runOnce) return;
   const pidKey = cliChannel || 'default';
   const pidFile = path.join(os.tmpdir(), `ag-codex-daemon-${pidKey}.pid`);
@@ -145,29 +141,20 @@ export function acquireDaemonPidLock(cliChannel = null, runOnce = false, onShutd
       }
     }
     fs.writeFileSync(pidFile, String(process.pid), 'utf8');
-    let shutdownRan = false;
-    const runShutdown = () => {
-      if (!shutdownRan) {
-        shutdownRan = true;
-        if (typeof onShutdown === 'function') {
-          try {
-            onShutdown();
-          } catch {}
-        }
-      }
+    const cleanPid = () => {
       try {
         if (fs.existsSync(pidFile) && fs.readFileSync(pidFile, 'utf8').trim() === String(process.pid)) {
           fs.unlinkSync(pidFile);
         }
       } catch {}
     };
-    process.on('exit', runShutdown);
+    process.on('exit', cleanPid);
     process.on('SIGINT', () => {
-      runShutdown();
+      cleanPid();
       process.exit(0);
     });
     process.on('SIGTERM', () => {
-      runShutdown();
+      cleanPid();
       process.exit(0);
     });
   } catch {}
@@ -751,15 +738,6 @@ export function createCdpManager({
                       promptSuggester.syncState();
                     } catch {}
                   }
-                  if (sshRemoteCtrl && typeof sshRemoteCtrl.syncState === 'function') {
-                    try {
-                      const stCfg = bundleCtrl.getState().activeConfig;
-                      sshRemoteCtrl.syncState({
-                        enabled: Boolean(stCfg.enabled && stCfg.modules?.sshRemote),
-                        sshHosts: stCfg.sshHosts
-                      });
-                    } catch {}
-                  }
                   for (const entry of attachedTargets.values()) {
                     if (!entry.hostConfirmed) continue;
                     try {
@@ -787,9 +765,11 @@ export function createCdpManager({
                     enabled: activeConfig.enabled,
                     telemetryLayout: activeConfig.telemetryLayout,
                     telemetryCacheMode: activeConfig.telemetryCacheMode,
+                    telemetryDefaultExpanded: Boolean(activeConfig.telemetryDefaultExpanded),
                     promptSuggestionModel: activeConfig.promptSuggestionModel,
                     sshHosts: Array.isArray(activeConfig.sshHosts) ? activeConfig.sshHosts : [],
-                    modules: Object.assign({}, activeConfig.modules)
+                    modules: Object.assign({}, activeConfig.modules),
+                    quotaBar: activeConfig.quotaBar
                   },
                   agyStatus,
                   modelsInfo
@@ -826,12 +806,6 @@ export function createCdpManager({
                     promptSuggester.syncState();
                   }
                   const { activeConfig } = bundleCtrl.getState();
-                  if (sshRemoteCtrl && typeof sshRemoteCtrl.syncState === 'function') {
-                    sshRemoteCtrl.syncState({
-                      enabled: Boolean(activeConfig.enabled && activeConfig.modules?.sshRemote),
-                      sshHosts: activeConfig.sshHosts
-                    });
-                  }
                   if (!activeConfig.enabled) {
                     targetThemeModes.clear();
                   }
@@ -857,9 +831,11 @@ export function createCdpManager({
                     enabled: activeConfig.enabled,
                     telemetryLayout: activeConfig.telemetryLayout,
                     telemetryCacheMode: activeConfig.telemetryCacheMode,
+                    telemetryDefaultExpanded: Boolean(activeConfig.telemetryDefaultExpanded),
                     promptSuggestionModel: activeConfig.promptSuggestionModel,
                     sshHosts: Array.isArray(activeConfig.sshHosts) ? activeConfig.sshHosts : [],
-                    modules: Object.assign({}, activeConfig.modules)
+                    modules: Object.assign({}, activeConfig.modules),
+                    quotaBar: activeConfig.quotaBar
                   },
                   agyStatus
                 };
@@ -942,12 +918,6 @@ export function createCdpManager({
         promptSuggester.syncState();
       }
       const { activeConfig } = bundleCtrl.getState();
-      if (sshRemoteCtrl && typeof sshRemoteCtrl.syncState === 'function') {
-        sshRemoteCtrl.syncState({
-          enabled: Boolean(activeConfig.enabled && activeConfig.modules?.sshRemote),
-          sshHosts: activeConfig.sshHosts
-        });
-      }
       if (!activeConfig.enabled) {
         targetThemeModes.clear();
       }
@@ -1095,10 +1065,7 @@ export function createCdpManager({
 
   function closeAll() {
     if (promptSuggester && typeof promptSuggester.stop === 'function') {
-      promptSuggester.stop({ terminateAll: true });
-    }
-    if (sshRemoteCtrl && typeof sshRemoteCtrl.stop === 'function') {
-      sshRemoteCtrl.stop();
+      promptSuggester.stop();
     }
     for (const [, entry] of attachedTargets.entries()) {
       try {

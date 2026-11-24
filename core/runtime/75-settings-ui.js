@@ -152,14 +152,32 @@
       let activeSidebar = null;
       let boundSidebarClick = null;
 
+      const DEFAULT_QUOTA_BAR_UI = {
+        style: 'bar',
+        placement: 'inline',
+        scope: 'current',
+        windows: 'both',
+        theme: 'auto',
+        size: 'md',
+        align: 'center',
+        showReset: true,
+        showCredits: false,
+        customColor: '',
+        customBg: ''
+      };
+
       const bootUserCfg = boot.userConfig && typeof boot.userConfig === 'object' ? boot.userConfig : {};
       const uiState = {
         config: {
           telemetryLayout: bootUserCfg.telemetryLayout || boot.telemetryLayout || 'compact',
           telemetryCacheMode: bootUserCfg.telemetryCacheMode || boot.telemetryCacheMode || 'session',
+          telemetryDefaultExpanded: Boolean(
+            bootUserCfg.telemetryDefaultExpanded ?? boot.telemetryDefaultExpanded
+          ),
           promptSuggestionModel: bootUserCfg.promptSuggestionModel || 'gemini-3.8-flash-low',
           sshHosts: Array.isArray(bootUserCfg.sshHosts) ? bootUserCfg.sshHosts.slice() : [],
-          modules: Object.assign({}, MODULES, bootUserCfg.modules || {})
+          modules: Object.assign({}, MODULES, bootUserCfg.modules || {}),
+          quotaBar: Object.assign({}, DEFAULT_QUOTA_BAR_UI, bootUserCfg.quotaBar || boot.quotaBar || {})
         },
         agyStatus: (window.__ag_settings_agy_cache && Object.assign({}, window.__ag_settings_agy_cache)) || {
           available: true,
@@ -214,6 +232,49 @@
             modI18nDesc: '内置 1,900+ 界面词条，原地更新不影响交互，关闭即恢复英文',
             modMetrics: '实时会话状态与用量统计',
             modMetricsDesc: '底部四态状态指示、一/二级明细面板与每轮对话尾部统计',
+            modQuotaBar: 'Antigravity 配额用量栏',
+            modQuotaBarDesc: '在底部状态栏常驻显示 5 小时 / 每周配额进度，悬停或点击查看全部分组明细',
+            secQuota: 'Antigravity 用量栏样式',
+            secQuotaHint: '实时热重载',
+            qPreviewLbl: '实时样式预览',
+            qStyleLbl: '显示样式',
+            qStyleDesc: '选择纯文本、迷你进度条或胶囊标签展示配额',
+            qStyleText: '纯文本',
+            qStyleBar: '进度条',
+            qStylePill: '胶囊',
+            qPlaceLbl: '显示位置',
+            qPlaceDesc: '嵌入底部状态栏同行，或在下方单独占一行',
+            qPlaceInline: '状态栏同行',
+            qPlaceSeparate: '底部独立行',
+            qScopeLbl: '显示范围',
+            qScopeDesc: '仅显示当前选中模型所属分组，或同时显示全部分组',
+            qScopeCurrent: '当前模型组',
+            qScopeAll: '全部分组',
+            qWinLbl: '配额周期',
+            qWinDesc: '选择显示 5 小时限额、每周限额或两者同时显示',
+            qWinBoth: '5h + 每周',
+            qWin5h: '仅 5h',
+            qWinWeekly: '仅每周',
+            qThemeLbl: '配色方案',
+            qThemeDesc: '智能语义随余量变色，或使用极简单色、强调色与自定义颜色',
+            qThemeAuto: '智能语义',
+            qThemeMono: '极简单色',
+            qThemeAccent: '强调色',
+            qThemeCustom: '自定义',
+            qCustomFg: '前景/进度色',
+            qCustomBg: '胶囊背景',
+            qCustomClear: '恢复默认',
+            qSizeLbl: '字号大小',
+            qSizeSm: '小',
+            qSizeMd: '中',
+            qSizeLg: '大',
+            qAlignLbl: '对齐方式',
+            qAlignLeft: '左对齐',
+            qAlignCenter: '居中',
+            qAlignRight: '右对齐',
+            qAlignBetween: '两端分散',
+            qShowResetLbl: '显示重置倒计时',
+            qShowCreditsLbl: '底部栏显示 AI 点数',
             secOptional: '可选增强',
             secOptionalHint: '默认关闭，按需开启',
             modSuggest: '输入框下一句预测',
@@ -246,6 +307,10 @@
             cacheDesc: '选择状态栏展示整个会话的累计命中率，或最近单步命中率',
             cacheSession: '会话累计',
             cacheStep: '单步',
+            defaultExpandLbl: '明细面板默认展开',
+            defaultExpandDesc: '悬停或点击底部统计栏时，默认直接展开全部明细（耗时、输出与会话累计）',
+            defaultExpandOff: '默认收起',
+            defaultExpandOn: '默认展开',
             secUpdate: '版本与更新',
             updTitle: '插件版本',
             updDescIdle: '从 GitHub 仓库检查新版本并直接更新，保留 user/ 个人配置',
@@ -288,6 +353,49 @@
           modI18nDesc: '1,900+ built-in UI entries applied in place; disable to restore English immediately',
           modMetrics: 'Live Session Status & Telemetry',
           modMetricsDesc: 'Bottom 4-state status indicator, expandable L1/L2 panels, and per-turn footer stats',
+          modQuotaBar: 'Antigravity Quota Bar',
+          modQuotaBarDesc: 'Always-visible 5-hour / weekly model quota bar in the bottom bar with hover/click details',
+          secQuota: 'Quota Bar Appearance',
+          secQuotaHint: 'Live hot-reload',
+          qPreviewLbl: 'Live Preview',
+          qStyleLbl: 'Display Style',
+          qStyleDesc: 'Render quota as plain text, mini progress bar, or capsule pill',
+          qStyleText: 'Text',
+          qStyleBar: 'Bar',
+          qStylePill: 'Pill',
+          qPlaceLbl: 'Placement',
+          qPlaceDesc: 'Sit inline with the bottom telemetry bar or on its own dedicated bottom row',
+          qPlaceInline: 'Inline',
+          qPlaceSeparate: 'Separate Row',
+          qScopeLbl: 'Group Scope',
+          qScopeDesc: 'Show only the active model group or all quota groups',
+          qScopeCurrent: 'Active Group',
+          qScopeAll: 'All Groups',
+          qWinLbl: 'Quota Windows',
+          qWinDesc: 'Display both 5h and weekly limits or a single window',
+          qWinBoth: '5h + Weekly',
+          qWin5h: '5h Only',
+          qWinWeekly: 'Weekly Only',
+          qThemeLbl: 'Color Theme',
+          qThemeDesc: 'Semantic colors by remaining quota, monochrome, Codex accent, or custom colors',
+          qThemeAuto: 'Semantic',
+          qThemeMono: 'Mono',
+          qThemeAccent: 'Accent',
+          qThemeCustom: 'Custom',
+          qCustomFg: 'Accent Color',
+          qCustomBg: 'Pill Background',
+          qCustomClear: 'Reset',
+          qSizeLbl: 'Size',
+          qSizeSm: 'Small',
+          qSizeMd: 'Medium',
+          qSizeLg: 'Large',
+          qAlignLbl: 'Alignment',
+          qAlignLeft: 'Left',
+          qAlignCenter: 'Center',
+          qAlignRight: 'Right',
+          qAlignBetween: 'Space Between',
+          qShowResetLbl: 'Show Reset Countdown',
+          qShowCreditsLbl: 'Show AI Credits in Bar',
           secOptional: 'Optional Enhancements',
           secOptionalHint: 'Off by default, opt-in',
           modSuggest: 'Prompt Suggestions',
@@ -320,6 +428,10 @@
           cacheDesc: 'Display cumulative session cache hit rate or last-step hit rate',
           cacheSession: 'Session',
           cacheStep: 'Step',
+          defaultExpandLbl: 'Expand Details by Default',
+          defaultExpandDesc: 'Automatically show the full L2 breakdown (latency, output & session totals) on hover or click',
+          defaultExpandOff: 'Collapsed',
+          defaultExpandOn: 'Expanded',
           secUpdate: 'Updates',
           updTitle: 'Plugin Version',
           updDescIdle: 'Check GitHub for updates and apply directly; user/ config is preserved',
@@ -414,9 +526,14 @@
           uiState.config = {
             telemetryLayout: res.config.telemetryLayout || uiState.config.telemetryLayout,
             telemetryCacheMode: res.config.telemetryCacheMode || uiState.config.telemetryCacheMode,
+            telemetryDefaultExpanded:
+              typeof res.config.telemetryDefaultExpanded === 'boolean'
+                ? res.config.telemetryDefaultExpanded
+                : uiState.config.telemetryDefaultExpanded,
             promptSuggestionModel: res.config.promptSuggestionModel || uiState.config.promptSuggestionModel,
             sshHosts: Array.isArray(res.config.sshHosts) ? res.config.sshHosts.slice() : uiState.config.sshHosts,
-            modules: Object.assign({}, uiState.config.modules, res.config.modules || {})
+            modules: Object.assign({}, uiState.config.modules, res.config.modules || {}),
+            quotaBar: Object.assign({}, DEFAULT_QUOTA_BAR_UI, uiState.config.quotaBar || {}, res.config.quotaBar || {})
           };
         }
         if (res.agyStatus) {
@@ -543,6 +660,9 @@
         }
         if (patch.telemetryLayout) uiState.config.telemetryLayout = patch.telemetryLayout;
         if (patch.telemetryCacheMode) uiState.config.telemetryCacheMode = patch.telemetryCacheMode;
+        if (typeof patch.telemetryDefaultExpanded === 'boolean') {
+          uiState.config.telemetryDefaultExpanded = patch.telemetryDefaultExpanded;
+        }
         if (patch.promptSuggestionModel) {
           uiState.config.promptSuggestionModel = patch.promptSuggestionModel;
           if (uiState.config.modules.promptSuggestions && uiState.agyStatus.available) {
@@ -551,6 +671,9 @@
         }
         if (Array.isArray(patch.sshHosts)) {
           uiState.config.sshHosts = patch.sshHosts.slice();
+        }
+        if (patch.quotaBar && typeof patch.quotaBar === 'object') {
+          uiState.config.quotaBar = Object.assign({}, DEFAULT_QUOTA_BAR_UI, uiState.config.quotaBar || {}, patch.quotaBar);
         }
         window.__ag_settings_saved_label = 'saved';
         window.__ag_settings_saved_until = Date.now() + 1800;
@@ -1201,6 +1324,18 @@
           (mods.metrics !== false ? 'checked' : '') +
           ' />' +
           '</div></div>' +
+          '<div class="ag-s-row"><div class="ag-s-row-main">' +
+          '<div class="ag-s-row-info"><label class="ag-s-row-label" for="ag-s-sw-quotabar">' +
+          escHtml(s.modQuotaBar) +
+          '</label><div class="ag-s-row-desc">' +
+          escHtml(s.modQuotaBarDesc) +
+          '</div></div>' +
+          '<input id="ag-s-sw-quotabar" type="checkbox" switch role="switch" class="ag-s-switch" data-bind-mod="quotaBar" aria-label="' +
+          escHtml(s.modQuotaBar) +
+          '" ' +
+          (mods.quotaBar !== false ? 'checked' : '') +
+          ' />' +
+          '</div></div>' +
           '</div>' +
           '</div>' +
           // Group 2: Optional Enhancements
@@ -1355,8 +1490,226 @@
           '</button>' +
           '</div>' +
           '</div></div>' +
+          '<div class="ag-s-row"><div class="ag-s-row-main">' +
+          '<div class="ag-s-row-info"><div class="ag-s-row-label">' +
+          escHtml(s.defaultExpandLbl) +
+          '</div><div class="ag-s-row-desc">' +
+          escHtml(s.defaultExpandDesc) +
+          '</div></div>' +
+          '<div class="ag-s-seg" role="group" aria-label="' +
+          escHtml(s.defaultExpandLbl) +
+          '">' +
+          '<button type="button" class="ag-s-seg-btn" data-bool-seg="telemetryDefaultExpanded" data-val="false" aria-pressed="' +
+          (!cfg.telemetryDefaultExpanded ? 'true' : 'false') +
+          '">' +
+          escHtml(s.defaultExpandOff) +
+          '</button>' +
+          '<button type="button" class="ag-s-seg-btn" data-bool-seg="telemetryDefaultExpanded" data-val="true" aria-pressed="' +
+          (cfg.telemetryDefaultExpanded ? 'true' : 'false') +
+          '">' +
+          escHtml(s.defaultExpandOn) +
+          '</button>' +
+          '</div>' +
+          '</div></div>' +
           '</div>' +
           '</div>' +
+          // Group 3.5: Quota Bar Appearance
+          (() => {
+            if (mods.quotaBar === false) return '';
+            const q = Object.assign({}, DEFAULT_QUOTA_BAR_UI, cfg.quotaBar || {});
+            const segBtn = (field, val, label) =>
+              '<button type="button" class="ag-s-seg-btn" data-quota-seg="' +
+              field +
+              '" data-val="' +
+              val +
+              '" aria-pressed="' +
+              (q[field] === val ? 'true' : 'false') +
+              '">' +
+              escHtml(label) +
+              '</button>';
+            const qCache = window.__ag_quota_cache;
+            const b5 = qCache && qCache.groups && qCache.groups[0] && qCache.groups[0].buckets.find((b) => b.window === '5h');
+            const bw = qCache && qCache.groups && qCache.groups[0] && qCache.groups[0].buckets.find((b) => b.window === 'weekly');
+            const p5 = b5 ? b5.pct : 94;
+            const pw = bw ? bw.pct : 98;
+            const prevLvl = (p) => (p <= 20 ? 'crit' : p <= 50 ? 'warn' : 'ok');
+            const prevItem = (lbl, pct, rst) => {
+              const rstEl = q.showReset ? '<span class="ag-q-rst">(' + rst + ')</span>' : '';
+              if (q.style === 'pill') {
+                return '<span class="ag-q-item ag-q-pill-chip" data-lvl="' + prevLvl(pct) + '"><span class="ag-q-dot"></span><span class="ag-q-lbl">' + lbl + '</span><span class="ag-q-pct">' + pct + '%</span>' + rstEl + '</span>';
+              }
+              if (q.style === 'text') {
+                return '<span class="ag-q-item" data-lvl="' + prevLvl(pct) + '"><span class="ag-q-lbl">' + lbl + '</span><span class="ag-q-pct">' + pct + '%</span>' + rstEl + '</span>';
+              }
+              return '<span class="ag-q-item" data-lvl="' + prevLvl(pct) + '"><span class="ag-q-lbl">' + lbl + '</span><span class="ag-q-track"><span class="ag-q-fill" style="width:' + pct + '%"></span></span><span class="ag-q-pct">' + pct + '%</span>' + rstEl + '</span>';
+            };
+            const prevStyleAttr =
+              (q.customColor ? '--ag-q-custom-color:' + escHtml(q.customColor) + ';' : '') +
+              (q.customBg ? '--ag-q-custom-bg:' + escHtml(q.customBg) + ';' : '');
+            const prevItems = [];
+            if (q.windows !== 'weekly') prevItems.push(prevItem('5h', p5, '40m'));
+            if (q.windows !== '5h') prevItems.push(prevItem(isZhUi() ? '周' : 'Wk', pw, '6d'));
+            const prevHtml =
+              '<div class="ag-q-preview-bar" data-ag-q-style="' +
+              escHtml(q.style) +
+              '" data-ag-q-theme="' +
+              escHtml(q.theme) +
+              '" data-ag-q-size="' +
+              escHtml(q.size) +
+              '"' +
+              (prevStyleAttr ? ' style="' + prevStyleAttr + '"' : '') +
+              '>' +
+              '<span class="ag-q-group"><span class="ag-q-grp">' +
+              (q.scope === 'all' ? 'Gemini' : isZhUi() ? '配额' : 'Quota') +
+              '</span>' +
+              prevItems.join('') +
+              '</span>' +
+              (q.scope === 'all' ? '<span class="ag-q-grp-sep">·</span><span class="ag-q-group"><span class="ag-q-grp">Claude/GPT</span>' + prevItem('5h', 100, '') + '</span>' : '') +
+              (q.showCredits ? '<span class="ag-q-credits">' + (isZhUi() ? '点数 500' : 'Cr 500') + '</span>' : '') +
+              '</div>';
+
+            return (
+              '<div>' +
+              '<div class="ag-s-section-head">' +
+              '<span class="ag-s-section-title">' +
+              escHtml(s.secQuota) +
+              '</span>' +
+              '<span class="ag-s-section-hint">' +
+              escHtml(s.secQuotaHint) +
+              '</span>' +
+              '</div>' +
+              '<div class="ag-s-card">' +
+              '<div class="ag-s-row">' +
+              '<div class="ag-s-sub-label" style="margin-bottom:8px">' +
+              escHtml(s.qPreviewLbl) +
+              '</div>' +
+              '<div class="ag-s-quota-preview-box" data-align="' +
+              escHtml(q.align) +
+              '">' +
+              prevHtml +
+              '</div>' +
+              '</div>' +
+              '<div class="ag-s-row"><div class="ag-s-row-main">' +
+              '<div class="ag-s-row-info"><div class="ag-s-row-label">' +
+              escHtml(s.qStyleLbl) +
+              '</div><div class="ag-s-row-desc">' +
+              escHtml(s.qStyleDesc) +
+              '</div></div>' +
+              '<div class="ag-s-seg" role="group">' +
+              segBtn('style', 'text', s.qStyleText) +
+              segBtn('style', 'bar', s.qStyleBar) +
+              segBtn('style', 'pill', s.qStylePill) +
+              '</div>' +
+              '</div></div>' +
+              '<div class="ag-s-row"><div class="ag-s-row-main">' +
+              '<div class="ag-s-row-info"><div class="ag-s-row-label">' +
+              escHtml(s.qPlaceLbl) +
+              '</div><div class="ag-s-row-desc">' +
+              escHtml(s.qPlaceDesc) +
+              '</div></div>' +
+              '<div class="ag-s-seg" role="group">' +
+              segBtn('placement', 'inline', s.qPlaceInline) +
+              segBtn('placement', 'separate', s.qPlaceSeparate) +
+              '</div>' +
+              '</div></div>' +
+              '<div class="ag-s-row"><div class="ag-s-row-main">' +
+              '<div class="ag-s-row-info"><div class="ag-s-row-label">' +
+              escHtml(s.qScopeLbl) +
+              '</div><div class="ag-s-row-desc">' +
+              escHtml(s.qScopeDesc) +
+              '</div></div>' +
+              '<div class="ag-s-seg" role="group">' +
+              segBtn('scope', 'current', s.qScopeCurrent) +
+              segBtn('scope', 'all', s.qScopeAll) +
+              '</div>' +
+              '</div></div>' +
+              '<div class="ag-s-row"><div class="ag-s-row-main">' +
+              '<div class="ag-s-row-info"><div class="ag-s-row-label">' +
+              escHtml(s.qWinLbl) +
+              '</div><div class="ag-s-row-desc">' +
+              escHtml(s.qWinDesc) +
+              '</div></div>' +
+              '<div class="ag-s-seg" role="group">' +
+              segBtn('windows', 'both', s.qWinBoth) +
+              segBtn('windows', '5h', s.qWin5h) +
+              segBtn('windows', 'weekly', s.qWinWeekly) +
+              '</div>' +
+              '</div></div>' +
+              '<div class="ag-s-row">' +
+              '<div class="ag-s-row-main">' +
+              '<div class="ag-s-row-info"><div class="ag-s-row-label">' +
+              escHtml(s.qThemeLbl) +
+              '</div><div class="ag-s-row-desc">' +
+              escHtml(s.qThemeDesc) +
+              '</div></div>' +
+              '<div class="ag-s-seg" role="group">' +
+              segBtn('theme', 'auto', s.qThemeAuto) +
+              segBtn('theme', 'mono', s.qThemeMono) +
+              segBtn('theme', 'accent', s.qThemeAccent) +
+              segBtn('theme', 'custom', s.qThemeCustom) +
+              '</div>' +
+              '</div>' +
+              '<div class="ag-s-subrow"' +
+              (q.theme === 'custom' ? '' : ' hidden') +
+              '>' +
+              '<div class="ag-s-color-row">' +
+              '<label class="ag-s-color-chip"><span>' +
+              escHtml(s.qCustomFg) +
+              '</span><input type="color" class="ag-s-color-input" data-quota-color="customColor" value="' +
+              escHtml(q.customColor || '#2B7FFF') +
+              '" /></label>' +
+              '<label class="ag-s-color-chip"><span>' +
+              escHtml(s.qCustomBg) +
+              '</span><input type="color" class="ag-s-color-input" data-quota-color="customBg" value="' +
+              escHtml(/^#[0-9a-fA-F]{6}$/.test(q.customBg || '') ? q.customBg : '#EFF6FF') +
+              '" /></label>' +
+              '<button type="button" id="ag-s-quota-color-reset" class="ag-s-color-clear">' +
+              escHtml(s.qCustomClear) +
+              '</button>' +
+              '</div>' +
+              '</div>' +
+              '</div>' +
+              '<div class="ag-s-row"><div class="ag-s-row-main">' +
+              '<div class="ag-s-row-info"><div class="ag-s-row-label">' +
+              escHtml(s.qSizeLbl) +
+              '</div></div>' +
+              '<div class="ag-s-seg" role="group">' +
+              segBtn('size', 'sm', s.qSizeSm) +
+              segBtn('size', 'md', s.qSizeMd) +
+              segBtn('size', 'lg', s.qSizeLg) +
+              '</div>' +
+              '</div></div>' +
+              '<div class="ag-s-row"><div class="ag-s-row-main">' +
+              '<div class="ag-s-row-info"><div class="ag-s-row-label">' +
+              escHtml(s.qAlignLbl) +
+              '</div></div>' +
+              '<div class="ag-s-seg" role="group">' +
+              segBtn('align', 'left', s.qAlignLeft) +
+              segBtn('align', 'center', s.qAlignCenter) +
+              segBtn('align', 'right', s.qAlignRight) +
+              segBtn('align', 'between', s.qAlignBetween) +
+              '</div>' +
+              '</div></div>' +
+              '<div class="ag-s-row"><div class="ag-s-row-main">' +
+              '<div class="ag-s-row-info"><label class="ag-s-row-label" for="ag-s-sw-qreset">' +
+              escHtml(s.qShowResetLbl) +
+              '</label></div>' +
+              '<input id="ag-s-sw-qreset" type="checkbox" switch role="switch" class="ag-s-switch" data-quota-toggle="showReset" ' +
+              (q.showReset ? 'checked' : '') +
+              ' />' +
+              '</div></div>' +
+              '<div class="ag-s-row"><div class="ag-s-row-main">' +
+              '<div class="ag-s-row-info"><label class="ag-s-row-label" for="ag-s-sw-qcredits">' +
+              escHtml(s.qShowCreditsLbl) +
+              '</label></div>' +
+              '<input id="ag-s-sw-qcredits" type="checkbox" switch role="switch" class="ag-s-switch" data-quota-toggle="showCredits" ' +
+              (q.showCredits ? 'checked' : '') +
+              ' />' +
+              '</div></div>' +
+              '</div>' +
+              '</div>'
+            );
+          })() +
           // Group 4: Plugin Version & Updates
           (() => {
             const u = uiState.update || {};
@@ -1536,14 +1889,29 @@
       function bindPaneEvents(pane) {
         pane.addEventListener('change', (ev) => {
           const sw = ev.target && ev.target.closest ? ev.target.closest('input.ag-s-switch[data-bind-mod]') : null;
-          if (!sw) return;
-          const mod = sw.getAttribute('data-bind-mod');
-          if (!mod) return;
-          const checked = Boolean(sw.checked);
-          if (mod === 'promptSuggestions' && !checked) {
-            hideModelMenus({ restoreFocus: false });
+          if (sw) {
+            const mod = sw.getAttribute('data-bind-mod');
+            if (!mod) return;
+            const checked = Boolean(sw.checked);
+            if (mod === 'promptSuggestions' && !checked) {
+              hideModelMenus({ restoreFocus: false });
+            }
+            commitPatch({ modules: { [mod]: checked } });
+            return;
           }
-          commitPatch({ modules: { [mod]: checked } });
+
+          const qSw = ev.target && ev.target.closest ? ev.target.closest('input.ag-s-switch[data-quota-toggle]') : null;
+          if (qSw) {
+            const qField = qSw.getAttribute('data-quota-toggle');
+            if (qField) commitPatch({ quotaBar: { [qField]: Boolean(qSw.checked) } });
+            return;
+          }
+
+          const qCol = ev.target && ev.target.closest ? ev.target.closest('input[data-quota-color]') : null;
+          if (qCol) {
+            const cField = qCol.getAttribute('data-quota-color');
+            if (cField) commitPatch({ quotaBar: { [cField]: String(qCol.value || '').trim() } });
+          }
         });
 
         pane.addEventListener('click', (ev) => {
@@ -1607,6 +1975,32 @@
             if (field && val && uiState.config[field] !== val) {
               commitPatch({ [field]: val });
             }
+            return;
+          }
+
+          const boolSeg = ev.target && ev.target.closest ? ev.target.closest('.ag-s-seg-btn[data-bool-seg]') : null;
+          if (boolSeg) {
+            const field = boolSeg.getAttribute('data-bool-seg');
+            const val = boolSeg.getAttribute('data-val') === 'true';
+            if (field && Boolean(uiState.config[field]) !== val) {
+              commitPatch({ [field]: val });
+            }
+            return;
+          }
+
+          const qSeg = ev.target && ev.target.closest ? ev.target.closest('.ag-s-seg-btn[data-quota-seg]') : null;
+          if (qSeg) {
+            const qField = qSeg.getAttribute('data-quota-seg');
+            const val = qSeg.getAttribute('data-val');
+            const curQ = uiState.config.quotaBar || DEFAULT_QUOTA_BAR_UI;
+            if (qField && val && curQ[qField] !== val) {
+              commitPatch({ quotaBar: { [qField]: val } });
+            }
+            return;
+          }
+
+          if (ev.target && ev.target.closest && ev.target.closest('#ag-s-quota-color-reset')) {
+            commitPatch({ quotaBar: { customColor: '', customBg: '' } });
             return;
           }
 

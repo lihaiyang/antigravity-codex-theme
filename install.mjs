@@ -236,6 +236,7 @@ async function runInstall() {
     'theme',
     'i18n',
     'metrics',
+    'quotaBar',
     'sshRemote',
     'promptSuggestions',
     'deadlockHealer',
@@ -264,6 +265,11 @@ async function runInstall() {
   }
   if (!fs.existsSync(path.join(targetCore, 'runtime', '50-telemetry-ui.js'))) {
     currentCfg.modules.metrics = false;
+  }
+  if (!fs.existsSync(path.join(targetCore, 'runtime', '55-quota-bar.js'))) {
+    currentCfg.modules.quotaBar = false;
+  } else if (typeof currentCfg.modules.quotaBar !== 'boolean') {
+    currentCfg.modules.quotaBar = true;
   }
   if (
     !fs.existsSync(path.join(targetCore, 'runtime', '70-prompt-suggestions.js')) ||

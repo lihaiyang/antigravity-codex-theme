@@ -9,4 +9,7 @@
  *   html[data-ag-theme-mode="dark"]           (Codex Charcoal Dark mode)
  *   #ag-live-metrics-pill                     (Centered status & telemetry bar)
  *   #ag-live-metrics-tooltip                  (Bento detail card)
+ *   #ag-quota-bar                             (Always-visible Antigravity quota bar)
+ *   #ag-quota-tooltip                         (Quota breakdown detail popover)
+ *   --ag-quota-font-size / --ag-quota-color / --ag-quota-ok / --ag-quota-warn / --ag-quota-crit
  */

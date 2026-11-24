@@ -4,11 +4,13 @@
   "preset": "codex-pure-white",
   "telemetryLayout": "compact",
   "telemetryCacheMode": "session",
+  "telemetryDefaultExpanded": false,
   "contextLimit": "auto",
   "modules": {
     "theme": true,
     "i18n": true,
     "metrics": true,
+    "quotaBar": true,
     "sshRemote": false,
     "promptSuggestions": false,
     "deadlockHealer": true,
@@ -16,6 +18,19 @@
     "cdpAutoRelaunch": true,
     "customCss": true,
     "customJs": true
+  },
+  "quotaBar": {
+    "style": "bar",
+    "placement": "inline",
+    "scope": "current",
+    "windows": "both",
+    "theme": "auto",
+    "size": "md",
+    "align": "center",
+    "showReset": true,
+    "showCredits": false,
+    "customColor": "",
+    "customBg": ""
   },
   "sshHosts": [],
   "themeVars": {}

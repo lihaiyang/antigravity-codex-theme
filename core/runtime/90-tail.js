@@ -7,10 +7,14 @@
     config: boot.userConfig && typeof boot.userConfig === 'object' ? boot.userConfig : {},
     modules: Object.assign({}, MODULES),
     telemetryLayout: boot.telemetryLayout || 'compact',
+    quotaBar: boot.quotaBar || {},
     themeVars: Object.assign({}, THEME_VARS),
     dict: typeof DICT !== 'undefined' ? DICT : {},
     get metrics() {
       return window.__ag_last_metrics || null;
+    },
+    get quota() {
+      return window.__ag_quota_cache || null;
     },
     syncPreset: typeof syncThemePreset === 'function' ? syncThemePreset : () => {},
     ensureMetricsPill: typeof ensureMetricsPill === 'function' ? ensureMetricsPill : () => null,
@@ -60,6 +64,9 @@
     }
     if (typeof checkRouteAndMountMetrics === 'function') {
       checkRouteAndMountMetrics();
+    }
+    if (typeof mountQuotaBar === 'function') {
+      mountQuotaBar();
     }
     if (typeof mountPromptSuggestions === 'function') {
       mountPromptSuggestions();

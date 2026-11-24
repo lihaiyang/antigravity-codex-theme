@@ -3,51 +3,15 @@
  * 2-Level Cascading Model Picker (Light & Dark Codex Tokens)
  * ============================================================================ */
 
-/* Default: inherit native Antigravity theme tokens cleanly when Codex Theme is OFF */
 #ag-settings-nav-wrap,
 #ag-settings-pane,
 #ag-settings-model-menu,
 #ag-settings-effort-menu {
-  --ag-s-bg: var(--background, #FFFFFF);
-  --ag-s-sidebar: var(--sidebar, #FAFAFA);
-  --ag-s-selected: var(--sidebar-secondary, var(--secondary, rgba(0, 0, 0, 0.06)));
-  --ag-s-hover: var(--muted, rgba(0, 0, 0, 0.04));
-  --ag-s-card: var(--card, var(--background, transparent));
-  --ag-s-surface: var(--muted, rgba(0, 0, 0, 0.038));
-  --ag-s-border: var(--card-border, var(--border, rgba(0, 0, 0, 0.08)));
-  --ag-s-hairline: var(--border, rgba(0, 0, 0, 0.06));
-  --ag-s-fg: var(--foreground, #0A0A0C);
-  --ag-s-fg-2: var(--secondary-foreground, #3F3F46);
-  --ag-s-fg-3: var(--muted-foreground, #71717A);
-  --ag-s-primary: var(--primary, #2F75C3);
-  --ag-s-focus: var(--primary, #2F75C3);
-  --ag-s-switch-off: rgba(128, 128, 128, 0.30);
-  --ag-s-ok: var(--success, #10B981);
-  --ag-s-warn: var(--warning, #D97706);
-  --ag-s-err: var(--error, #DC2626);
-  --ag-s-seg-bg: var(--secondary, rgba(0, 0, 0, 0.06));
-  --ag-s-seg-active: var(--card, var(--background, #FFFFFF));
-  --ag-s-seg-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
-  --ag-s-chip-bg: var(--secondary, rgba(0, 0, 0, 0.06));
-  --ag-s-badge-bg: var(--secondary, rgba(0, 0, 0, 0.06));
-  --ag-s-dropdown-shadow: 0 12px 32px -4px rgba(15, 23, 42, 0.14), 0 2px 8px -2px rgba(15, 23, 42, 0.06);
-  --ag-s-font: var(--font-sans, Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei UI", system-ui, sans-serif);
-  --ag-s-mono: var(--font-mono, "SF Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
-}
-
-:is(html.dark body, body.dark, body.theme-dark, body[data-agy-theme].dark) :is(#ag-settings-nav-wrap, #ag-settings-pane, #ag-settings-model-menu, #ag-settings-effort-menu) {
-  --ag-s-switch-off: rgba(255, 255, 255, 0.22);
-  --ag-s-seg-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
-  --ag-s-dropdown-shadow: 0 20px 44px -6px rgba(0, 0, 0, 0.72), 0 4px 12px rgba(0, 0, 0, 0.42);
-}
-
-/* Codex Light palette — applied ONLY when Codex Theme module is enabled (html[data-ag-preset]) */
-html[data-ag-preset]:not([data-ag-theme-mode="dark"]):not(:has(> body.dark)) :is(#ag-settings-nav-wrap, #ag-settings-pane, #ag-settings-model-menu, #ag-settings-effort-menu) {
-  --ag-s-bg: var(--background, #FFFFFF);
-  --ag-s-sidebar: var(--sidebar, #F9F9F9);
-  --ag-s-selected: var(--sidebar-secondary, #EFEFEF);
+  --ag-s-bg: #FFFFFF;
+  --ag-s-sidebar: #F9F9F9;
+  --ag-s-selected: #EFEFEF;
   --ag-s-hover: rgba(0, 0, 0, 0.045);
-  --ag-s-card: var(--card, #FFFFFF);
+  --ag-s-card: #FFFFFF;
   --ag-s-surface: #F6F7F9;
   --ag-s-border: rgba(0, 0, 0, 0.08);
   --ag-s-hairline: rgba(0, 0, 0, 0.06);
@@ -65,15 +29,17 @@ html[data-ag-preset]:not([data-ag-theme-mode="dark"]):not(:has(> body.dark)) :is
   --ag-s-seg-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
   --ag-s-chip-bg: #F3F4F6;
   --ag-s-badge-bg: #F3F4F6;
+  --ag-s-dropdown-shadow: 0 12px 32px -4px rgba(15, 23, 42, 0.14), 0 2px 8px -2px rgba(15, 23, 42, 0.06);
+  --ag-s-font: var(--font-sans, Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei UI", system-ui, sans-serif);
+  --ag-s-mono: var(--font-mono, "SF Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
 }
 
-/* Codex Dark palette — applied ONLY when Codex Theme module is enabled */
-:is(html[data-ag-preset][data-ag-theme-mode="dark"] body, html[data-ag-preset].dark body, html[data-ag-preset] body.dark, html[data-ag-preset] body.theme-dark, html[data-ag-preset] body[data-agy-theme].dark) :is(#ag-settings-nav-wrap, #ag-settings-pane, #ag-settings-model-menu, #ag-settings-effort-menu) {
-  --ag-s-bg: var(--background, #181818);
-  --ag-s-sidebar: var(--sidebar, #232323);
-  --ag-s-selected: var(--sidebar-secondary, #353535);
+:is(html[data-ag-theme-mode="dark"] body, html.dark body, body.dark, body.theme-dark, body[data-agy-theme].dark) :is(#ag-settings-nav-wrap, #ag-settings-pane, #ag-settings-model-menu, #ag-settings-effort-menu) {
+  --ag-s-bg: #181818;
+  --ag-s-sidebar: #232323;
+  --ag-s-selected: #353535;
   --ag-s-hover: rgba(255, 255, 255, 0.06);
-  --ag-s-card: var(--card, #212121);
+  --ag-s-card: #212121;
   --ag-s-surface: #2B2B2B;
   --ag-s-border: rgba(255, 255, 255, 0.09);
   --ag-s-hairline: rgba(255, 255, 255, 0.07);
@@ -97,7 +63,11 @@ html[data-ag-preset]:not([data-ag-theme-mode="dark"]):not(:has(> body.dark)) :is
 /* Native Settings Modal Integration */
 #ag-settings-nav-divider {
   margin: 8px 16px 6px 16px;
-  border-top: 1px solid var(--sidebar-border, var(--border, rgba(0, 0, 0, 0.06)));
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+:is(html[data-ag-theme-mode="dark"] body, html.dark body, body.dark, body.theme-dark) #ag-settings-nav-divider {
+  border-top-color: rgba(255, 255, 255, 0.07);
 }
 
 #ag-settings-nav-wrap {
@@ -174,8 +144,8 @@ html[data-ag-preset]:not([data-ag-theme-mode="dark"]):not(:has(> body.dark)) :is
   width: 100%;
   height: 100%;
   overflow-y: auto;
-  padding: 36px 24px 48px 24px;
-  background-color: transparent;
+  padding: 28px 36px 40px 36px;
+  background-color: var(--ag-s-bg);
   color: var(--ag-s-fg);
   font-family: var(--ag-s-font) !important;
   -webkit-font-smoothing: antialiased;
@@ -192,16 +162,9 @@ html[data-ag-preset]:not([data-ag-theme-mode="dark"]):not(:has(> body.dark)) :is
 }
 
 #ag-settings-pane .ag-s-header {
-  width: 100%;
-  max-width: 624px;
-  margin: 0 auto 28px auto;
-  padding-right: 0;
-}
-
-@media (max-width: 900px) {
-  #ag-settings-pane .ag-s-header {
-    padding-right: 32px;
-  }
+  margin-bottom: 24px;
+  max-width: 672px;
+  padding-right: 16px;
 }
 
 #ag-settings-pane .ag-s-title-row {
@@ -257,7 +220,7 @@ html[data-ag-preset]:not([data-ag-theme-mode="dark"]):not(:has(> body.dark)) :is
 #ag-settings-pane .ag-s-hdr-links {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex-shrink: 0;
 }
 
@@ -265,7 +228,7 @@ html[data-ag-preset]:not([data-ag-theme-mode="dark"]):not(:has(> body.dark)) :is
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 4px 11px;
+  padding: 4px 10px;
   border-radius: 999px;
   background-color: var(--ag-s-surface) !important;
   border: 1px solid var(--ag-s-border) !important;
@@ -305,7 +268,7 @@ html[data-ag-preset]:not([data-ag-theme-mode="dark"]):not(:has(> body.dark)) :is
 }
 
 #ag-settings-pane .ag-s-subtitle {
-  margin: 10px 0 0 0 !important;
+  margin: 4px 0 0 0 !important;
   font-size: 12px !important;
   line-height: 18px !important;
   color: var(--ag-s-fg-3) !important;
@@ -320,9 +283,7 @@ html[data-ag-preset]:not([data-ag-theme-mode="dark"]):not(:has(> body.dark)) :is
   display: flex;
   flex-direction: column;
   gap: 24px;
-  width: 100%;
-  max-width: 624px;
-  margin: 0 auto;
+  max-width: 672px;
 }
 
 #ag-settings-pane .ag-s-section-head {
@@ -967,5 +928,77 @@ html[data-ag-preset]:not([data-ag-theme-mode="dark"]):not(:has(> body.dark)) :is
 }
 
 .ag-s-menu-row-check {
+  color: var(--ag-s-fg) !important;
+}
+
+/* Quota Bar Preview & Custom Color Controls */
+#ag-settings-pane .ag-s-quota-preview-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background-color: var(--ag-s-surface);
+  border: 1px dashed var(--ag-s-border);
+}
+
+#ag-settings-pane .ag-s-quota-preview-box[data-align="left"] {
+  justify-content: flex-start;
+}
+
+#ag-settings-pane .ag-s-quota-preview-box[data-align="center"] {
+  justify-content: center;
+}
+
+#ag-settings-pane .ag-s-quota-preview-box[data-align="right"] {
+  justify-content: flex-end;
+}
+
+#ag-settings-pane .ag-s-quota-preview-box[data-align="between"] {
+  justify-content: space-between;
+}
+
+#ag-settings-pane .ag-s-color-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+#ag-settings-pane .ag-s-color-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border-radius: 8px;
+  background-color: var(--ag-s-surface);
+  border: 1px solid var(--ag-s-border);
+  font-size: 12px !important;
+  color: var(--ag-s-fg-2) !important;
+}
+
+#ag-settings-pane .ag-s-color-input {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--ag-s-border);
+  border-radius: 5px;
+  background: transparent;
+  cursor: pointer;
+}
+
+#ag-settings-pane .ag-s-color-clear {
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--ag-s-border);
+  background: transparent;
+  color: var(--ag-s-fg-3) !important;
+  font-size: 11px !important;
+  cursor: pointer;
+}
+
+#ag-settings-pane .ag-s-color-clear:hover {
+  background-color: var(--ag-s-hover);
   color: var(--ag-s-fg) !important;
 }
