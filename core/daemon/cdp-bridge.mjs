@@ -192,6 +192,7 @@ export function trimDaemonLogsIfNeeded(runOnce = false) {
 export function createCdpManager({
   bundleCtrl,
   metricsReader,
+  globalStatsReader = null,
   promptSuggester = null,
   hasSqlite,
   runOnce = false,
@@ -543,6 +544,7 @@ export function createCdpManager({
             await send('Runtime.addBinding', { name: '__agSyncHostThemeMode' });
             await send('Runtime.addBinding', { name: '__agRequestPromptSuggestion' });
             await send('Runtime.addBinding', { name: '__agGetSettingsState' });
+            await send('Runtime.addBinding', { name: '__agGetGlobalStats' });
             await send('Runtime.addBinding', { name: '__agUpdateSettings' });
             await send('Runtime.addBinding', { name: '__agOpenExternalUrl' });
             await send('Runtime.addBinding', { name: '__agCheckPluginUpdate' });
@@ -774,6 +776,38 @@ export function createCdpManager({
                   agyStatus,
                   modelsInfo
                 };
+                if (ws.readyState === WebSocket.OPEN) {
+                  const payloadJson = JSON.stringify(out)
+                    .replace(/\u2028/g, '\\u2028')
+                    .replace(/\u2029/g, '\\u2029');
+                  try {
+                    await send('Runtime.evaluate', {
+                      expression: `if (typeof window.__ag_on_settings_state === 'function') { window.__ag_on_settings_state(${JSON.stringify(reqId)}, ${payloadJson}); }`,
+                      returnByValue: false
+                    });
+                  } catch {}
+                }
+              })();
+              return;
+            }
+            if (msg.method === 'Runtime.bindingCalled' && msg.params?.name === '__agGetGlobalStats') {
+              if (isSwarmIframe || !hostConfirmed) return;
+              let req = {};
+              try {
+                req = msg.params.payload ? JSON.parse(String(msg.params.payload)) : {};
+              } catch {}
+              const reqId = String(req?.reqId || '');
+              const range = typeof req?.range === 'string' ? req.range : 'all';
+              const force = Boolean(req?.force);
+              void (async () => {
+                let out;
+                try {
+                  out = globalStatsReader
+                    ? globalStatsReader.getGlobalStats(endpoint.conversationsDir, { range, force })
+                    : { ok: false, error: 'SQLite stats reader unavailable' };
+                } catch (err) {
+                  out = { ok: false, error: err?.message || String(err || 'Failed to read global stats') };
+                }
                 if (ws.readyState === WebSocket.OPEN) {
                   const payloadJson = JSON.stringify(out)
                     .replace(/\u2028/g, '\\u2028')

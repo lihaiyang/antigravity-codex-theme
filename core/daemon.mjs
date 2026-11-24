@@ -32,6 +32,7 @@ const loadOptionalModule = async (relPath) => {
 const protoMod = await loadOptionalModule('daemon/protobuf.mjs');
 const lsLogMod = await loadOptionalModule('daemon/ls-log.mjs');
 const sqliteMetricsMod = await loadOptionalModule('daemon/sqlite-metrics.mjs');
+const globalStatsMod = await loadOptionalModule('daemon/global-stats.mjs');
 const promptSuggestMod = await loadOptionalModule('daemon/prompt-suggest.mjs');
 
 const parseProto = protoMod?.parseProto || null;
@@ -67,6 +68,12 @@ const metricsReader = sqliteMetricsMod
     })
   : { parseConversationMetrics: () => null };
 
+const globalStatsReader = globalStatsMod
+  ? globalStatsMod.createGlobalStatsReader({
+      getDatabaseSync: () => DatabaseSync
+    })
+  : null;
+
 const promptSuggester = promptSuggestMod
   ? promptSuggestMod.createPromptSuggestionEngine({
       getConfig: () => bundleCtrl.getState().activeConfig,
@@ -77,6 +84,7 @@ const promptSuggester = promptSuggestMod
 const cdpManager = createCdpManager({
   bundleCtrl,
   metricsReader,
+  globalStatsReader,
   promptSuggester,
   hasSqlite: () => Boolean(DatabaseSync && sqliteMetricsMod),
   runOnce: cliOpts.runOnce,
@@ -103,9 +111,11 @@ export async function startDaemon() {
   if (globalThis.__ag_daemon_started) return;
   globalThis.__ag_daemon_started = true;
 
-  acquireDaemonPidLock(cliOpts.cliChannel, cliOpts.runOnce, () => cdpManager.closeAll());
-  if (cliOpts.runOnce && promptSuggester && typeof promptSuggester.stop === 'function') {
-    process.on('exit', () => promptSuggester.stop({ terminateAll: true }));
+  acquireDaemonPidLock(cliOpts.cliChannel, cliOpts.runOnce);
+  if (promptSuggester && typeof promptSuggester.stop === 'function') {
+    process.on('exit', () => promptSuggester.stop());
+    process.on('SIGINT', () => promptSuggester.stop());
+    process.on('SIGTERM', () => promptSuggester.stop());
   }
   trimDaemonLogsIfNeeded(cliOpts.runOnce);
   bundleCtrl.rebuildBundleIfNeeded();

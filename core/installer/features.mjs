@@ -72,6 +72,7 @@ export const FEATURE_GROUPS = Object.freeze({
       '/core/daemon/ls-log.mjs',
       '/core/daemon/protobuf.mjs',
       '/core/daemon/sqlite-metrics.mjs',
+      '/core/daemon/global-stats.mjs',
       '/core/daemon/ssh-remote.mjs',
       '/core/daemon/telemetry-renderer.mjs'
     ],
@@ -85,6 +86,7 @@ export const FEATURE_GROUPS = Object.freeze({
       'daemon/ls-log.mjs',
       'daemon/protobuf.mjs',
       'daemon/sqlite-metrics.mjs',
+      'daemon/global-stats.mjs',
       'daemon/ssh-remote.mjs',
       'daemon/telemetry-renderer.mjs'
     ],

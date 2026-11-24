@@ -98,7 +98,9 @@
       for (const id of [
         'ag-settings-nav-divider',
         'ag-settings-nav-wrap',
+        'ag-settings-stats-nav-wrap',
         'ag-settings-pane',
+        'ag-stats-pane',
         'ag-settings-model-menu',
         'ag-settings-effort-menu'
       ]) {
@@ -148,6 +150,8 @@
       let invalidHost = false;
       let refreshingModels = false;
       let refreshingAll = false;
+      let statsLoading = false;
+      let statsRange = window.__ag_global_stats_range || 'all';
       let activeDlg = null;
       let activeSidebar = null;
       let boundSidebarClick = null;
@@ -577,6 +581,302 @@
         if (!disposed && res) {
           applyRemoteState(res, forceReload ? 'refreshed' : false);
         }
+      }
+
+      function fmtStatsTok(n) {
+        if (!n || n <= 0) return '0';
+        if (n >= 1000000000) return (n / 1000000000).toFixed(2) + 'B';
+        if (n >= 1000000) return (n / 1000000).toFixed(2) + 'M';
+        if (n >= 10000) return Math.round(n / 1000) + 'k';
+        if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
+        return String(n);
+      }
+
+      function fmtStatsNum(n) {
+        return Number(n || 0).toLocaleString('en-US');
+      }
+
+      async function fetchGlobalStats({ range = statsRange, force = false } = {}) {
+        statsRange = range;
+        window.__ag_global_stats_range = range;
+        statsLoading = true;
+        renderStatsPane();
+        const res = await callDaemonBinding('__agGetGlobalStats', { range, force }, 20000);
+        statsLoading = false;
+        if (disposed) return;
+        if (res && res.ok) {
+          window.__ag_global_stats_cache = res;
+        }
+        renderStatsPane();
+      }
+
+      function renderStatsPane() {
+        const navBtn = document.getElementById('ag-settings-stats-nav-btn');
+        if (navBtn) {
+          const lbl = navBtn.querySelector('.ag-s-nav-label');
+          if (lbl) lbl.textContent = isZhUi() ? '用量统计' : 'Token Usage';
+        }
+        const pane = document.getElementById('ag-stats-pane');
+        if (!pane) return;
+
+        const zh = isZhUi();
+        const data = window.__ag_global_stats_cache;
+        const hasValidData = Boolean(data && data.ok && data.range === statsRange);
+        const curRange = statsRange;
+
+        const rangeBtns = [
+          ['today', zh ? '今日' : 'Today'],
+          ['7d', zh ? '近 7 天' : '7 Days'],
+          ['30d', zh ? '近 30 天' : '30 Days'],
+          ['all', zh ? '全部' : 'All']
+        ]
+          .map(
+            ([val, label]) =>
+              '<button type="button" class="ag-s-seg-btn" data-stats-range="' +
+              val +
+              '" aria-pressed="' +
+              (curRange === val ? 'true' : 'false') +
+              '">' +
+              escHtml(label) +
+              '</button>'
+          )
+          .join('');
+
+        let bodyHtml = '';
+        if (statsLoading && !hasValidData) {
+          bodyHtml = '<div class="ag-st-card"><div class="ag-st-empty">' + (zh ? '正在汇总全部会话 SQLite 数据…' : 'Aggregating all conversation databases…') + '</div></div>';
+        } else if (!data || !data.ok) {
+          bodyHtml = '<div class="ag-st-card"><div class="ag-st-empty">' + escHtml((data && data.error) || (zh ? '暂无可用统计数据' : 'No usage data available')) + '</div></div>';
+        } else if (data.totalGenerations === 0) {
+          bodyHtml = '<div class="ag-st-card"><div class="ag-st-empty">' + (zh ? '当前时间范围内暂无 Token 消耗记录' : 'No token usage recorded in this time range') + '</div></div>';
+        } else {
+          const tot = Math.max(1, data.totalTokens);
+          const segPct = (v) => (v > 0 ? Math.max(1.2, (v / tot) * 100).toFixed(1) : '0');
+          const segs = [
+            data.totalIn > 0 ? '<div class="ag-st-seg ag-st-c-in" style="width:' + segPct(data.totalIn) + '%"></div>' : '',
+            data.totalCacheWrite > 0 ? '<div class="ag-st-seg ag-st-c-cw" style="width:' + segPct(data.totalCacheWrite) + '%"></div>' : '',
+            data.totalCacheRead > 0 ? '<div class="ag-st-seg ag-st-c-cr" style="width:' + segPct(data.totalCacheRead) + '%"></div>' : '',
+            data.totalThink > 0 ? '<div class="ag-st-seg ag-st-c-th" style="width:' + segPct(data.totalThink) + '%"></div>' : '',
+            data.totalResp > 0 ? '<div class="ag-st-seg ag-st-c-re" style="width:' + segPct(data.totalResp) + '%"></div>' : ''
+          ].join('');
+
+          const maxDaily = Math.max(1, ...(data.daily || []).map((d) => d.totalTokens || 0));
+          const dailyCols = (data.daily || [])
+            .map((d) => {
+              const hPct = d.totalTokens > 0 ? Math.max(6, Math.round((d.totalTokens / maxDaily) * 100)) : 4;
+              const titleStr = d.iso + ': ' + fmtStatsTok(d.totalTokens) + ' (' + d.gens + (zh ? ' 次)' : ' calls)');
+              return (
+                '<div class="ag-st-day-col" title="' +
+                escHtml(titleStr) +
+                '">' +
+                '<div class="ag-st-day-bar-wrap"><div class="ag-st-day-bar' +
+                (d.totalTokens === 0 ? ' is-empty' : '') +
+                '" style="height:' +
+                hPct +
+                '%"></div></div>' +
+                '<span class="ag-st-day-lbl">' +
+                escHtml(d.date) +
+                '</span>' +
+                '</div>'
+              );
+            })
+            .join('');
+
+          const modelsHtml = (data.models || [])
+            .map((m) => {
+              return (
+                '<div class="ag-st-model-item">' +
+                '<div class="ag-st-model-top">' +
+                '<span class="ag-st-model-name">' +
+                escHtml(m.name) +
+                '</span>' +
+                '<span class="ag-st-model-val">' +
+                fmtStatsTok(m.totalTokens) +
+                ' (' +
+                m.sharePct +
+                '%)</span>' +
+                '</div>' +
+                '<div class="ag-st-model-track"><div class="ag-st-model-fill" style="width:' +
+                Math.max(2, Math.min(100, m.sharePct)) +
+                '%"></div></div>' +
+                '<div class="ag-st-model-sub">' +
+                m.gens +
+                (zh ? ' 次调用 · 新增 ' : ' calls · In ') +
+                fmtStatsTok(m.inTok) +
+                (zh ? ' · 缓存 ' : ' · Cache ') +
+                fmtStatsTok(m.cacheRead) +
+                (zh ? ' · 输出 ' : ' · Out ') +
+                fmtStatsTok(m.outTok) +
+                '</div>' +
+                '</div>'
+              );
+            })
+            .join('');
+
+          const convsHtml = (data.topConversations || [])
+            .map((c) => {
+              const dtStr = c.lastTsMs
+                ? new Date(c.lastTsMs).toLocaleString([], { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+                : '';
+              return (
+                '<div class="ag-st-conv-row">' +
+                '<div>' +
+                '<div class="ag-st-conv-id">' +
+                escHtml(c.shortId) +
+                '…</div>' +
+                '<div class="ag-st-conv-sub">' +
+                escHtml(dtStr) +
+                ' · ' +
+                c.gens +
+                (zh ? ' 次调用 · 缓存命中 ' : ' calls · Cache ') +
+                c.cacheHitRate +
+                '%</div>' +
+                '</div>' +
+                '<div class="ag-st-conv-right">' +
+                fmtStatsTok(c.totalTokens) +
+                '<div class="ag-st-conv-sub">' +
+                (zh ? '输出 ' : 'Out ') +
+                fmtStatsTok(c.outTok) +
+                '</div></div>' +
+                '</div>'
+              );
+            })
+            .join('');
+
+          bodyHtml =
+            '<div class="ag-st-kpi-grid">' +
+            '<div class="ag-st-kpi"><div class="ag-st-kpi-lbl">' +
+            (zh ? '总 Token 消耗' : 'Total Tokens') +
+            '</div><div class="ag-st-kpi-val">' +
+            fmtStatsTok(data.totalTokens) +
+            '</div><div class="ag-st-kpi-sub">' +
+            data.activeConversations +
+            (zh ? ' 个会话 · ' : ' chats · ') +
+            fmtStatsNum(data.totalGenerations) +
+            (zh ? ' 次' : ' calls') +
+            '</div></div>' +
+            '<div class="ag-st-kpi"><div class="ag-st-kpi-lbl">' +
+            (zh ? '累计输入' : 'Total Input') +
+            '</div><div class="ag-st-kpi-val">' +
+            fmtStatsTok(data.totalPrompt) +
+            '</div><div class="ag-st-kpi-sub">' +
+            (zh ? '新增 ' : 'New ') +
+            fmtStatsTok(data.totalIn) +
+            (zh ? ' · 缓存 ' : ' · Cache ') +
+            fmtStatsTok(data.totalCacheRead) +
+            '</div></div>' +
+            '<div class="ag-st-kpi"><div class="ag-st-kpi-lbl">' +
+            (zh ? '累计输出' : 'Total Output') +
+            '</div><div class="ag-st-kpi-val">' +
+            fmtStatsTok(data.totalOut) +
+            '</div><div class="ag-st-kpi-sub">' +
+            (zh ? '思考 ' : 'Think ') +
+            fmtStatsTok(data.totalThink) +
+            (zh ? ' · 正文 ' : ' · Resp ') +
+            fmtStatsTok(data.totalResp) +
+            '</div></div>' +
+            '<div class="ag-st-kpi"><div class="ag-st-kpi-lbl">' +
+            (zh ? '平均缓存命中率' : 'Cache Hit Rate') +
+            '</div><div class="ag-st-kpi-val is-ok">' +
+            data.cacheHitRate +
+            '%</div><div class="ag-st-kpi-sub">' +
+            (zh ? '已命中 ' : 'Hit ') +
+            fmtStatsTok(data.totalCacheRead) +
+            '</div></div>' +
+            '</div>' +
+            '<div class="ag-st-card">' +
+            '<div class="ag-st-card-hdr"><span class="ag-st-card-title">' +
+            (zh ? 'Token 构成分布' : 'Token Composition') +
+            '</span><span class="ag-st-card-meta">' +
+            fmtStatsNum(data.totalTokens) +
+            '</span></div>' +
+            '<div class="ag-st-stack-bar">' +
+            segs +
+            '</div>' +
+            '<div class="ag-st-legend">' +
+            '<span class="ag-st-leg"><span class="ag-st-dot ag-st-c-in"></span>' +
+            (zh ? '新增输入 ' : 'New Input ') +
+            fmtStatsTok(data.totalIn) +
+            '</span>' +
+            (data.totalCacheWrite > 0
+              ? '<span class="ag-st-leg"><span class="ag-st-dot ag-st-c-cw"></span>' + (zh ? '写缓存 ' : 'Cache Write ') + fmtStatsTok(data.totalCacheWrite) + '</span>'
+              : '') +
+            '<span class="ag-st-leg"><span class="ag-st-dot ag-st-c-cr"></span>' +
+            (zh ? '缓存读取 ' : 'Cache Read ') +
+            fmtStatsTok(data.totalCacheRead) +
+            '</span>' +
+            '<span class="ag-st-leg"><span class="ag-st-dot ag-st-c-th"></span>' +
+            (zh ? '思考链 ' : 'Thinking ') +
+            fmtStatsTok(data.totalThink) +
+            '</span>' +
+            '<span class="ag-st-leg"><span class="ag-st-dot ag-st-c-re"></span>' +
+            (zh ? '正文/工具 ' : 'Response ') +
+            fmtStatsTok(data.totalResp) +
+            '</span>' +
+            '</div>' +
+            '</div>' +
+            '<div class="ag-st-card">' +
+            '<div class="ag-st-card-hdr"><span class="ag-st-card-title">' +
+            (zh ? '近期每日消耗趋势' : 'Daily Token Trend') +
+            '</span><span class="ag-st-card-meta">' +
+            (data.daily ? data.daily.length : 0) +
+            (zh ? ' 天' : 'd') +
+            '</span></div>' +
+            '<div class="ag-st-daily-chart">' +
+            dailyCols +
+            '</div>' +
+            '</div>' +
+            '<div class="ag-st-card">' +
+            '<div class="ag-st-card-hdr"><span class="ag-st-card-title">' +
+            (zh ? '按模型用量分布' : 'Usage by Model') +
+            '</span><span class="ag-st-card-meta">' +
+            (data.models ? data.models.length : 0) +
+            (zh ? ' 个模型' : ' models') +
+            '</span></div>' +
+            '<div class="ag-st-model-list">' +
+            modelsHtml +
+            '</div>' +
+            '</div>' +
+            '<div class="ag-st-card">' +
+            '<div class="ag-st-card-hdr"><span class="ag-st-card-title">' +
+            (zh ? '高消耗会话 Top 5' : 'Top 5 Conversations') +
+            '</span><span class="ag-st-card-meta">' +
+            (zh ? '本地共 ' : 'Total ') +
+            data.scannedFiles +
+            (zh ? ' 个库' : ' DBs') +
+            '</span></div>' +
+            '<div class="ag-st-conv-list">' +
+            convsHtml +
+            '</div>' +
+            '</div>';
+        }
+
+        pane.innerHTML =
+          '<div class="ag-st-wrap">' +
+          '<div class="ag-st-hdr">' +
+          '<div>' +
+          '<div class="ag-st-title-row">' +
+          '<h2 class="ag-st-title">' +
+          (zh ? '全部会话 Token 用量' : 'All-Session Token Usage') +
+          '</h2>' +
+          '<button type="button" id="ag-stats-refresh" class="ag-st-refresh' +
+          (statsLoading ? ' is-spinning' : '') +
+          '" aria-label="' +
+          (zh ? '刷新统计' : 'Refresh stats') +
+          '">' +
+          '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 8a5.5 5.5 0 1 1-1.4-3.67M13.5 2.5v2.8h-2.8"/></svg>' +
+          '</button>' +
+          '</div>' +
+          '<p class="ag-st-subtitle">' +
+          (zh ? '汇总本机全部历史与当前会话的 SQLite 用量记录（含缓存读取、思考与正文输出）' : 'Aggregated across all local conversation SQLite databases') +
+          '</p>' +
+          '</div>' +
+          '<div class="ag-s-seg" role="group">' +
+          rangeBtns +
+          '</div>' +
+          '</div>' +
+          bodyHtml +
+          '</div>';
       }
 
       async function checkPluginUpdate() {
@@ -1864,22 +2164,29 @@
         commitPatch({ sshHosts: nextHosts });
       }
 
-      function setCodexTabOpen(open) {
-        window.__ag_settings_tab_open = Boolean(open);
+      function setActiveCustomTab(tab) {
+        const nextTab = tab === 'codex' || tab === 'stats' ? tab : '';
+        window.__ag_settings_active_tab = nextTab;
+        window.__ag_settings_tab_open = nextTab === 'codex';
         if (activeDlg) {
-          if (open) {
-            activeDlg.setAttribute('data-ag-codex-settings-open', '1');
+          if (nextTab) {
+            activeDlg.setAttribute('data-ag-codex-settings-open', nextTab);
           } else {
             activeDlg.removeAttribute('data-ag-codex-settings-open');
           }
         }
-        if (open) {
+        if (nextTab === 'codex') {
           renderPane();
           fetchSettingsState({
             includeModels: !window.__ag_settings_models_cache,
             refreshModels: false
           });
           syncStatusPoller();
+        } else if (nextTab === 'stats') {
+          hideModelMenus({ restoreFocus: false });
+          syncStatusPoller();
+          renderStatsPane();
+          fetchGlobalStats({ range: statsRange, force: true });
         } else {
           hideModelMenus({ restoreFocus: false });
           syncStatusPoller();
@@ -2057,6 +2364,7 @@
             }
             activeSidebar = null;
             boundSidebarClick = null;
+            window.__ag_settings_active_tab = '';
             window.__ag_settings_tab_open = false;
             window.__ag_settings_scroll_top = 0;
             hideModelMenus({ restoreFocus: false });
@@ -2085,8 +2393,13 @@
           activeSidebar = sidebar;
           boundSidebarClick = (ev) => {
             const btn = ev.target && ev.target.closest ? ev.target.closest('button') : null;
-            if (btn && btn.id !== 'ag-settings-nav-btn' && window.__ag_settings_tab_open) {
-              setCodexTabOpen(false);
+            if (
+              btn &&
+              btn.id !== 'ag-settings-nav-btn' &&
+              btn.id !== 'ag-settings-stats-nav-btn' &&
+              window.__ag_settings_active_tab
+            ) {
+              setActiveCustomTab('');
             }
           };
           sidebar.addEventListener('click', boundSidebarClick, true);
@@ -2123,13 +2436,42 @@
           btn.addEventListener('click', (ev) => {
             ev.preventDefault();
             ev.stopPropagation();
-            setCodexTabOpen(true);
+            setActiveCustomTab('codex');
           });
           navWrap.appendChild(btn);
           justMounted = true;
         }
         if (navWrap.parentElement !== firstNavGroup) {
           firstNavGroup.appendChild(navWrap);
+          justMounted = true;
+        }
+
+        let statsNavWrap = document.getElementById('ag-settings-stats-nav-wrap');
+        if (!statsNavWrap) {
+          statsNavWrap = document.createElement('div');
+          statsNavWrap.id = 'ag-settings-stats-nav-wrap';
+          statsNavWrap.className = 'relative group/nav-item';
+          const sBtn = document.createElement('button');
+          sBtn.id = 'ag-settings-stats-nav-btn';
+          sBtn.type = 'button';
+          sBtn.setAttribute('data-testid', 'settings-nav-item-TokenStats');
+          sBtn.innerHTML =
+            '<span class="ag-s-nav-left">' +
+            '<svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.85;flex-shrink:0" aria-hidden="true">' +
+            '<path d="M3 13V8M8 13V3M13 13V6"/>' +
+            '</svg>' +
+            '<span class="ag-s-nav-label"></span>' +
+            '</span>';
+          sBtn.addEventListener('click', (ev) => {
+            ev.preventDefault();
+            ev.stopPropagation();
+            setActiveCustomTab('stats');
+          });
+          statsNavWrap.appendChild(sBtn);
+          justMounted = true;
+        }
+        if (statsNavWrap.parentElement !== firstNavGroup) {
+          firstNavGroup.appendChild(statsNavWrap);
           justMounted = true;
         }
 
@@ -2145,15 +2487,47 @@
           justMounted = true;
         }
 
+        let statsPane = document.getElementById('ag-stats-pane');
+        if (!statsPane) {
+          statsPane = document.createElement('div');
+          statsPane.id = 'ag-stats-pane';
+          statsPane.addEventListener('click', (ev) => {
+            const refBtn = ev.target && ev.target.closest ? ev.target.closest('#ag-stats-refresh') : null;
+            if (refBtn) {
+              ev.preventDefault();
+              ev.stopPropagation();
+              fetchGlobalStats({ range: statsRange, force: true });
+              return;
+            }
+            const rangeBtn = ev.target && ev.target.closest ? ev.target.closest('[data-stats-range]') : null;
+            if (rangeBtn) {
+              const r = rangeBtn.getAttribute('data-stats-range');
+              if (r && r !== statsRange) {
+                fetchGlobalStats({ range: r, force: false });
+              }
+            }
+          });
+          justMounted = true;
+        }
+        if (statsPane.parentElement !== rightPane) {
+          rightPane.appendChild(statsPane);
+          justMounted = true;
+        }
+
         if (justMounted) {
           renderPane();
-          if (window.__ag_settings_tab_open) {
-            activeDlg.setAttribute('data-ag-codex-settings-open', '1');
+          renderStatsPane();
+          const curTab = window.__ag_settings_active_tab || (window.__ag_settings_tab_open ? 'codex' : '');
+          if (curTab === 'codex') {
+            activeDlg.setAttribute('data-ag-codex-settings-open', 'codex');
             fetchSettingsState({
               includeModels: !window.__ag_settings_models_cache,
               refreshModels: false
             });
             syncStatusPoller();
+          } else if (curTab === 'stats') {
+            activeDlg.setAttribute('data-ag-codex-settings-open', 'stats');
+            fetchGlobalStats({ range: statsRange, force: false });
           }
         }
       }
