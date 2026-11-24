@@ -1,0 +1,13 @@
+{
+  "command": "node",
+  "args": [
+    "main.mjs"
+  ],
+  "restart_policy": "always",
+  "display_name": "Codex Theme",
+  "description": "Codex light/dark theme, Chinese UI localization, customizable bottom quota bar, and all-session token usage stats.",
+  "has_web_ui": false,
+  "agent_permissions": {
+    "allows_user_interactions": false
+  }
+}

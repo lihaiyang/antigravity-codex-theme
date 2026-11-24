@@ -54,9 +54,13 @@ function getArg(flag, fallback = null) {
 }
 
 function resolveDefaultTargetDir() {
-  const installed = path.join(os.homedir(), '.gemini', 'antigravity', SERVICE_IDS.installDirName);
-  if (fs.existsSync(path.join(installed, 'core', 'daemon.mjs'))) {
-    return installed;
+  const nativePluginDir = path.join(os.homedir(), '.gemini', 'config', 'plugins', 'antigravity-codex-theme');
+  if (fs.existsSync(path.join(nativePluginDir, 'core', 'daemon.mjs'))) {
+    return nativePluginDir;
+  }
+  const legacyInstalled = path.join(os.homedir(), '.gemini', 'antigravity', SERVICE_IDS.installDirName);
+  if (fs.existsSync(path.join(legacyInstalled, 'core', 'daemon.mjs'))) {
+    return legacyInstalled;
   }
   return __dirname;
 }
@@ -137,7 +141,7 @@ async function runInstall() {
   const minimalMode = hasFlag('--minimal');
   const withLauncher = hasFlag('--with-launcher');
   const syncUser = hasFlag('--sync-user');
-  const defaultTarget = path.join(os.homedir(), '.gemini', 'antigravity', SERVICE_IDS.installDirName);
+  const defaultTarget = path.join(os.homedir(), '.gemini', 'config', 'plugins', 'antigravity-codex-theme');
   const targetDir = path.resolve(getArg('--target-dir', defaultTarget));
 
   const featureSel = parseFeatureSelection({ onlyArg, withoutArg });
@@ -201,10 +205,18 @@ async function runInstall() {
       }
     }
 
-    for (const docFile of ['package.json', 'install.mjs', 'SKILL.md', 'README.md', 'LICENSE']) {
+    for (const docFile of ['plugin.json', 'package.json', 'install.mjs', 'SKILL.md', 'README.md', 'LICENSE']) {
       const s = path.join(__dirname, docFile);
       const d = path.join(targetDir, docFile);
       if (fs.existsSync(s)) fs.copyFileSync(s, d);
+    }
+    for (const extraDir of ['assets', 'sidecars', 'skills']) {
+      const sDir = path.join(__dirname, extraDir);
+      const dDir = path.join(targetDir, extraDir);
+      if (fs.existsSync(sDir)) {
+        fs.rmSync(dDir, { recursive: true, force: true });
+        copyDirRecursive(sDir, dDir);
+      }
     }
 
     if (minimalMode && featureSel.explicit) {
@@ -287,18 +299,28 @@ async function runInstall() {
   const argvStatus = ensureArgvRemoteDebugging(currentCfg.channel);
   const launcherInfo = ensureCdpLaunchers(currentCfg.channel, { withLauncher });
 
-  const scriptsDir = path.join(os.homedir(), '.gemini', 'antigravity', 'scripts');
-  fs.mkdirSync(scriptsDir, { recursive: true });
-  const wrapperDaemon = path.join(scriptsDir, SERVICE_IDS.wrapperFileName);
-  const realDaemon = path.join(targetCore, 'daemon.mjs');
-  const realDaemonUrl = pathToFileURL(realDaemon).href;
-  fs.writeFileSync(
-    wrapperDaemon,
-    `#!/usr/bin/env node\n// Auto-generated wrapper -> ${realDaemon}\nconst mod = await import(${JSON.stringify(realDaemonUrl)});\nif (typeof mod.startDaemon === 'function' && !globalThis.__ag_daemon_started) {\n  await mod.startDaemon();\n}\n`,
-    { encoding: 'utf8', mode: 0o755 }
-  );
-
-  const serviceInfo = registerSystemService(targetDir, wrapperDaemon);
+  const isNativePluginDir = targetDir.includes(path.join('.gemini', 'config', 'plugins'));
+  let serviceInfo;
+  if (isNativePluginDir) {
+    uninstallSystemService(targetDir);
+    serviceInfo = {
+      platform: process.platform,
+      mode: 'antigravity-native-sidecar',
+      managedBy: 'Antigravity Plugin Host'
+    };
+  } else {
+    const scriptsDir = path.join(os.homedir(), '.gemini', 'antigravity', 'scripts');
+    fs.mkdirSync(scriptsDir, { recursive: true });
+    const wrapperDaemon = path.join(scriptsDir, SERVICE_IDS.wrapperFileName);
+    const realDaemon = path.join(targetCore, 'daemon.mjs');
+    const realDaemonUrl = pathToFileURL(realDaemon).href;
+    fs.writeFileSync(
+      wrapperDaemon,
+      `#!/usr/bin/env node\n// Auto-generated wrapper -> ${realDaemon}\nconst mod = await import(${JSON.stringify(realDaemonUrl)});\nif (typeof mod.startDaemon === 'function' && !globalThis.__ag_daemon_started) {\n  await mod.startDaemon();\n}\n`,
+      { encoding: 'utf8', mode: 0o755 }
+    );
+    serviceInfo = registerSystemService(targetDir, wrapperDaemon);
+  }
 
   spawnSync(process.execPath, ['--disable-warning=ExperimentalWarning', realDaemon, '--once'], {
     stdio: 'inherit'

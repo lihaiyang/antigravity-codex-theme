@@ -5,12 +5,12 @@
   "fullMetricsNodeVersion": "22.13.0",
   "files": {
     "daemon.mjs": {
-      "sha256": "65019a4a06128548f9ebdb70b5642a0b049cdf24a8f5ab424444391aeef61a60",
-      "bytes": 4551
+      "sha256": "89aaa76b68bae598c64255191f9cfb38548c279728c1238ef39344fffab15a92",
+      "bytes": 5219
     },
     "daemon/cdp-bridge.mjs": {
-      "sha256": "f14b0c2df5671344ac4fe23939ae750d8716913a35ce8088d5ee48ba85c8f334",
-      "bytes": 46424
+      "sha256": "dad75ca5a758988b8ff50d0b6d97f75391f9b55179c46ec2f5d26a62436a009c",
+      "bytes": 48936
     },
     "daemon/cdp-relaunch.mjs": {
       "sha256": "51e9a4212942252547594c3294a6cccba426d081b5934a69fab3068aa21370c1",

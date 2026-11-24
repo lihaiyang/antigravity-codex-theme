@@ -127,10 +127,17 @@ export function isSkippedTargetCoolingDown(entry, currentOrigin, nowMs = Date.no
   return nowMs < Number(entry.nextRetryAtMs || 0);
 }
 
-export function acquireDaemonPidLock(cliChannel = null, runOnce = false) {
-  if (runOnce) return;
+export function acquireDaemonPidLock(cliChannel = null, runOnce = false, { manageSignals = true } = {}) {
+  if (runOnce) return () => {};
   const pidKey = cliChannel || 'default';
   const pidFile = path.join(os.tmpdir(), `ag-codex-daemon-${pidKey}.pid`);
+  const cleanPid = () => {
+    try {
+      if (fs.existsSync(pidFile) && fs.readFileSync(pidFile, 'utf8').trim() === String(process.pid)) {
+        fs.unlinkSync(pidFile);
+      }
+    } catch {}
+  };
   try {
     if (fs.existsSync(pidFile)) {
       const oldPid = parseInt(fs.readFileSync(pidFile, 'utf8').trim(), 10);
@@ -141,23 +148,19 @@ export function acquireDaemonPidLock(cliChannel = null, runOnce = false) {
       }
     }
     fs.writeFileSync(pidFile, String(process.pid), 'utf8');
-    const cleanPid = () => {
-      try {
-        if (fs.existsSync(pidFile) && fs.readFileSync(pidFile, 'utf8').trim() === String(process.pid)) {
-          fs.unlinkSync(pidFile);
-        }
-      } catch {}
-    };
     process.on('exit', cleanPid);
-    process.on('SIGINT', () => {
-      cleanPid();
-      process.exit(0);
-    });
-    process.on('SIGTERM', () => {
-      cleanPid();
-      process.exit(0);
-    });
+    if (manageSignals) {
+      process.on('SIGINT', () => {
+        cleanPid();
+        process.exit(0);
+      });
+      process.on('SIGTERM', () => {
+        cleanPid();
+        process.exit(0);
+      });
+    }
   } catch {}
+  return cleanPid;
 }
 
 export function trimLogFileIfOversized(filePath, maxBytes = 256 * 1024, keepBytes = 64 * 1024) {
@@ -919,10 +922,20 @@ export function createCdpManager({
         ws.addEventListener('close', closeHandler);
         ws.addEventListener('error', closeHandler);
 
+        const removeNewDocScript = async () => {
+          if (evalScriptId) {
+            try {
+              await send('Page.removeScriptToEvaluateOnNewDocument', { identifier: evalScriptId });
+            } catch {}
+            evalScriptId = null;
+          }
+        };
+
         attachedTargets.set(target.id, {
           ws,
           send,
           updateNewDocScript,
+          removeNewDocScript,
           inject,
           checkAndInject,
           syncMetricsForSession,
@@ -1110,5 +1123,53 @@ export function createCdpManager({
     targetThemeModes.clear();
   }
 
-  return { sync, closeAll };
+  async function teardownAll() {
+    const teardownTasks = [];
+    const cleanupExpr = `(() => {
+      try {
+        if (Array.isArray(window.__ag_cleanup_fns)) {
+          for (const fn of window.__ag_cleanup_fns.splice(0)) {
+            try { if (typeof fn === 'function') fn(); } catch {}
+          }
+        }
+        for (const id of [
+          'ag-codex-theme', 'ag-user-theme-vars', 'ag-user-custom-style',
+          'ag-live-metrics-pill', 'ag-side-metrics-pill', 'ag-live-metrics-tooltip',
+          'ag-turn-metrics-tooltip', 'ag-quota-bar', 'ag-quota-tooltip',
+          'ag-settings-nav-divider', 'ag-settings-nav-wrap', 'ag-settings-stats-nav-wrap',
+          'ag-settings-pane', 'ag-stats-pane', 'ag-settings-model-menu', 'ag-settings-effort-menu'
+        ]) {
+          const el = document.getElementById(id);
+          if (el) el.remove();
+        }
+        document.querySelectorAll('.ag-turn-metrics, .ag-live-metrics-pill, .ag-prompt-ghost-overlay').forEach((el) => el.remove());
+        document.querySelectorAll('[data-ag-has-quota], [data-ag-codex-settings-open], [data-ag-settings-right-pane]').forEach((el) => {
+          el.removeAttribute('data-ag-has-quota');
+          el.removeAttribute('data-ag-codex-settings-open');
+          el.removeAttribute('data-ag-settings-right-pane');
+        });
+        for (const attr of ['data-ag-preset', 'data-ag-theme-mode', 'data-ag-page-type', 'data-ag-os', 'data-ag-custom-font-size']) {
+          document.documentElement.removeAttribute(attr);
+        }
+        window.__ag_patch_version = 'disabled';
+      } catch {}
+    })()`;
+    for (const [, entry] of attachedTargets.entries()) {
+      if (!entry.hostConfirmed) continue;
+      teardownTasks.push(
+        (async () => {
+          try {
+            if (entry.removeNewDocScript) await entry.removeNewDocScript();
+            await entry.send('Runtime.evaluate', { expression: cleanupExpr, returnByValue: false });
+          } catch {}
+        })()
+      );
+    }
+    if (teardownTasks.length > 0) {
+      await Promise.allSettled(teardownTasks);
+    }
+    closeAll();
+  }
+
+  return { sync, closeAll, teardownAll };
 }

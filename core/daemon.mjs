@@ -107,12 +107,15 @@ export function parseConversationMetrics(cascadeId, conversationsDir, extraOpts 
   return metricsReader.parseConversationMetrics(cascadeId, conversationsDir, extraOpts);
 }
 
-export async function startDaemon() {
+let syncInterval = null;
+let cleanPidFn = () => {};
+
+export async function startDaemon({ sidecarMode = false } = {}) {
   if (globalThis.__ag_daemon_started) return;
   globalThis.__ag_daemon_started = true;
 
-  acquireDaemonPidLock(cliOpts.cliChannel, cliOpts.runOnce);
-  if (promptSuggester && typeof promptSuggester.stop === 'function') {
+  cleanPidFn = acquireDaemonPidLock(cliOpts.cliChannel, cliOpts.runOnce, { manageSignals: !sidecarMode });
+  if (!sidecarMode && promptSuggester && typeof promptSuggester.stop === 'function') {
     process.on('exit', () => promptSuggester.stop());
     process.on('SIGINT', () => promptSuggester.stop());
     process.on('SIGTERM', () => promptSuggester.stop());
@@ -122,7 +125,7 @@ export async function startDaemon() {
 
   const { activeConfig, cachedPatchVersion } = bundleCtrl.getState();
   console.log(
-    `[Antigravity Codex Daemon] Started (${cachedPatchVersion}) | preset=${activeConfig.preset} | channel=${activeConfig.channel} | sqlite=${Boolean(DatabaseSync)} | safeMode=${cliOpts.safeMode}`
+    `[Antigravity Codex Daemon] Started (${cachedPatchVersion}) | preset=${activeConfig.preset} | channel=${activeConfig.channel} | sqlite=${Boolean(DatabaseSync)} | safeMode=${cliOpts.safeMode} | sidecar=${sidecarMode}`
   );
 
   await cdpManager.sync();
@@ -130,8 +133,27 @@ export async function startDaemon() {
     cdpManager.closeAll();
     process.exit(0);
   } else {
-    setInterval(() => cdpManager.sync(), 2500);
+    syncInterval = setInterval(() => cdpManager.sync(), 2500);
   }
+}
+
+export async function stopDaemon({ teardownUi = false } = {}) {
+  if (syncInterval) {
+    clearInterval(syncInterval);
+    syncInterval = null;
+  }
+  if (promptSuggester && typeof promptSuggester.stop === 'function') {
+    try {
+      promptSuggester.stop();
+    } catch {}
+  }
+  if (teardownUi && typeof cdpManager.teardownAll === 'function') {
+    await cdpManager.teardownAll();
+  } else {
+    cdpManager.closeAll();
+  }
+  cleanPidFn();
+  globalThis.__ag_daemon_started = false;
 }
 
 const invokedArg = process.argv[1] ? path.resolve(process.argv[1]) : '';

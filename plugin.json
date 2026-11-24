@@ -1,0 +1,13 @@
+{
+  "name": "antigravity-codex-theme",
+  "displayName": "Antigravity Codex Theme",
+  "version": "1.4.0",
+  "description": "Codex light/dark theme, Chinese UI localization, always-visible customizable quota bar, and all-session token usage stats for Antigravity.",
+  "logo": "assets/logo.svg",
+  "repository": "https://github.com/lihaiyang/antigravity-codex-theme",
+  "suggestedPrompts": [
+    "Customize the bottom quota bar style and layout",
+    "Check all-session token usage statistics",
+    "Toggle Codex theme or Chinese UI localization"
+  ]
+}
